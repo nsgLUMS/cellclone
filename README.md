@@ -108,15 +108,15 @@ We show the steps to reproduce the following figure of our paper.
 
 <div align="center" id="fig3">
     <img style="width: 70%; height: 70%;" src="assets/images/attach_stragglers_comparison.png" >
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fig 3: Initial Attach results</p>
+    <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Fig 11: Initial Attach PCT comparison. Initial Attach involves multiple non-deterministic operations.</p>
 </div>
 
-Figure 3 shows the evaluation of six systems (_SkyCore_, _Neutrino_, ...) under three types of scenarios (_Normal_, _T-Straggler_, _P-Straggler_). Here, we will be reproducing the results of _CellClone-ASN.1_ under all three scenarios. The evaluation of remaining systems follows similar steps.
+Figure 11 shows the evaluation of five systems (_Neutrino_, Existing 5G, ...) under three types of scenarios (_Normal_, _T-Straggler_, _P-Straggler_). Here, we will be reproducing the results of _CellClone-ASN.1_ under all three scenarios. The evaluation of remaining systems follows similar steps.
 
 ### Steps to reproduce CellClone results
 
 1. First, naviagte to [exps](https://github.com/nsgLUMS/cellclone/tree/master/exps) folder and open [config.json](https://github.com/nsgLUMS/cellclone/blob/master/exps/config.json) file.
-2. The provided config file reproduces the _CellClone-ASN.1_ results from [Figure 3](#fig3). Let's explore which variables are relevant in this experiemnt. Note: please do not change variables not explained here. 
+2. The provided config file reproduces the _CellClone-ASN.1_ results from [Figure 11](#fig3). Let's explore which variables are relevant in this experiemnt. Note: please do not change variables not explained here. 
     - `bursty`: `false` means the Control Traffic Generator will replay the cellular traffic in uniform rate i.e., messages per second.
     - `replicas`: `3` means a single message will be forwarded to exactly __3__ CPFs.
     - `cpfs_action`: describes how each CPF will behave. For instance, `{"1": "straggler", "type": 2}` hash has two key-value pairs. First key-value means first CPF will behave as a straggler. Whereas, second key-value pair indicats the type of staggler first CPF will behave as. Types of stragglers are given below,
