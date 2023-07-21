@@ -180,7 +180,6 @@ void DataWorker::run()
       char type = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET);
       if (type == 'R')
       {
-        // printf("ISTRUE\n");
         isRemote = true;
       } else {
         isRemote = false;
@@ -411,11 +410,8 @@ void DataWorker::run()
 
           uint8_t *payload_ptr = rte_pktmbuf_mtod_offset(rsp[response_count], 
                                                          uint8_t *, PAYLOAD_OFFSET);
-          if (isRemote == true)
-          {
-            // time_t currentTime = std::time(NULL);
+          if (isRemote == true) {
             *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'R';
-            // *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET + CPF_TIME_OFFSET) = currentTime;
           } else {
             *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'L';
           }
@@ -434,10 +430,6 @@ void DataWorker::run()
     }
 
     // Return back the responses to the CTA.
-    // if (isRemote)
-    // {
-    //   usleep(50);
-    // }
     
     uint16_t to_send = response_count;
     int sent;

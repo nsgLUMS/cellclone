@@ -30,13 +30,7 @@ def run_async(cmd):
     return subprocess.Popen([cmd], shell=True, stdout=None, stderr=None, close_fds=True, preexec_fn=os.setsid)
 
 
-def run():
-    # os.remove("/home/pepc/ali/cellclone/src/core/cta/logs/Ahmed_LB_LocalTime_Logs.txt")
-    # os.remove("/home/pepc/ali/cellclone/src/core/cta/logs/Ahmed_LB_ClearTime_Logs.txt")
-    # os.remove("/home/pepc/ali/cellclone/src/core/cta/logs/Ahmed_LB_RemoteTime_Logs.txt")
-    # os.remove("/home/pepc/ali/cellclone/src/core/cta/logs/Ahmed_LB_TotalTime_Logs.txt")
-    # os.remove("/home/pepc/ali/cellclone/src/core/cta/logs/Ahmed_CTA_Logs.txt")
-    
+def run():  
     serializer = sys.argv[1]
     cpfs = sys.argv[2]
     remote_cpfs = sys.argv[3]

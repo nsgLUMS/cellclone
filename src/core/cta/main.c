@@ -190,36 +190,6 @@ void *listen_on_tx(void *args) {
     // Receiving responses from the CPFs.
     nb_rx = rte_eth_rx_burst((uint8_t)CPF_PORT, 0, pkts_burst, MAX_PKT_BURST);
 
-    // uint16_t consumed = 0;
-
-    // time_t currentTime = time(NULL);
-    // int returned;
-    // for (uint16_t i = 0; i < nb_rx; ++i)
-    // {
-    //     struct rte_mbuf *pkt = pkts_burst[i];
-    //     uint8_t *data = rte_pktmbuf_mtod_offset(pkt, uint8_t*, PAYLOAD_OFFSET);
-    //     char type = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET);
-
-    //     if (type == 'L')
-    //     {
-    //         consumed++;
-    //     }
-    //     else
-    //     {
-    //         time_t packet_time = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET + CPF_TIME_OFFSET);
-    //         long time_diff = (currentTime - packet_time) * 1000000L;
-
-    //         if (time_diff >= 50000)
-    //         {
-    //             consumed++;
-    //         }
-    //         else
-    //         {
-    //           returned = rte_eth_tx_burst((uint8_t)CPF_PORT, 0, pkts_burst, MAX_PKT_BURST);
-    //         }
-    //     }
-    // }
-
     if (nb_rx == 0) {
       continue;
     }
