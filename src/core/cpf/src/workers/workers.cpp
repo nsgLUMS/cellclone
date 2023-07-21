@@ -9,6 +9,11 @@
 
 #include "workers.h"
 
+#include <queue>
+
+#include <stdio.h>
+#include <ctime>
+
 #include "../../Common/globals.h"
 // #include "../../Common/messages/messages.hpp"
 #include "../../Common/time/time.h"
@@ -18,6 +23,15 @@ std::mutex print_mtx;
 
 const size_t PAYLOAD_OFFSET =
     sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr);
+
+const size_t CPF_ID_OFFSET =
+    sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t); 
+
+const size_t CPF_TYPE_OFFSET =
+    sizeof(char);
+
+const size_t CPF_TIME_OFFSET =
+    sizeof(time_t);
 
 const size_t FLAG_OFFSET =
     sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t) + sizeof(uint8_t);
@@ -106,7 +120,7 @@ static inline uint16_t generate_packet(struct rte_mbuf *buf, uint8_t *response,
 
   1. Receiving messages from the do_rx worker defined in 'main.c'
   2. Implementing the stragger logic.
-  3. Processing and generating response for the messages.
+  3. Processing and generating response for the messages. 
   4. Sending the responses back to CTA. 
  */
 
@@ -142,18 +156,19 @@ void DataWorker::run()
   int len;
   struct rte_eth_xstat *xstats;
   struct rte_eth_xstat_name *xstats_names;
-
+  bool isRemote = false;
   while (!force_quit)
   {
 
     // Receiving messages from the 'do_rx' thread. 
+    isRemote = false;
     nb_rx =
         rte_ring_dequeue_burst(rx_ring, (void **)pkt_burst, MAX_PKT_BURST, NULL);
     if (nb_rx == 0)
       continue;
 
-
     for (int pkt = 0; pkt < nb_rx; pkt++) {
+      isRemote = false;
       uint8_t *data = rte_pktmbuf_mtod_offset(pkt_burst[pkt], uint8_t*, PAYLOAD_OFFSET);
 
       rsp[pkt] = rte_pktmbuf_alloc(global_mempool);
@@ -161,6 +176,16 @@ void DataWorker::run()
         printf("Failed to allocate from mempool\n");
         continue;
       }
+      
+      char type = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET);
+      if (type == 'R')
+      {
+        // printf("ISTRUE\n");
+        isRemote = true;
+      } else {
+        isRemote = false;
+      }
+      
 
       if (total_cycles != -1)
       {
@@ -349,7 +374,26 @@ void DataWorker::run()
 
             pair<unsigned long int, double> pair;
             pair.first = state->getGuti();
-            pair.second = state->endTime - state->startTime;
+            pair.second = (state->endTime - state->startTime);
+            if (this->config->tx_arg > (this->config->replicas - this->config->remote_replicas))
+            {
+              switch (this->config->procedure)
+              {
+              case 1:
+                pair.second = pair.second + (this->config->delay)*5;
+                break;
+              case 2:
+                pair.second = pair.second + (this->config->delay)*11;
+                break;
+              case 3:
+                pair.second = pair.second + (this->config->delay)*3;
+                break;
+              default:
+                pair.second = pair.second;
+                break;
+              }
+            }
+            
             time_v.push_back(pair);
 
             complete_end_time = TimeStampMicro();
@@ -367,7 +411,14 @@ void DataWorker::run()
 
           uint8_t *payload_ptr = rte_pktmbuf_mtod_offset(rsp[response_count], 
                                                          uint8_t *, PAYLOAD_OFFSET);
-
+          if (isRemote == true)
+          {
+            // time_t currentTime = std::time(NULL);
+            *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'R';
+            // *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET + CPF_TIME_OFFSET) = currentTime;
+          } else {
+            *(payload_ptr + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'L';
+          }
           // Add application header to the message. 
           bytes_to_send =
               headerParser.PrependCustomHeader(buff, payload_ptr, bytes_to_send);
@@ -383,12 +434,18 @@ void DataWorker::run()
     }
 
     // Return back the responses to the CTA.
+    // if (isRemote)
+    // {
+    //   usleep(50);
+    // }
+    
     uint16_t to_send = response_count;
     int sent;
+
     while (to_send != 0) {
-      sent = rte_eth_tx_burst((uint8_t) PORT, this->id, rsp + (response_count - to_send), to_send);
+      sent = rte_eth_tx_burst((uint8_t)PORT, this->id, rsp + (response_count - to_send), 1);
       res_msgs += sent;
-      to_send -= sent;
+      to_send--;
     }
 
     for (int k = 0; k < nb_rx; k++){

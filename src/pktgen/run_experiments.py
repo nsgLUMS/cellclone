@@ -36,8 +36,8 @@ cta_log_files = ["CTA_console_logs.txt"]
 cpf_log_files = ["CPF_console_logs.txt", "CPF_logs.txt"]
 
 # ========= Common parameters =========================
-core_args = Template("$scheme $cpfs $replicas $cpfs_action")
-
+cta_args = Template("$scheme $cpfs $remote_cpfs $replicas $remote_replicas $tx_arg $delay $procedure $cpfs_action")
+cpf_args = Template("$scheme $cpfs $remote_cpfs $replicas $remote_replicas $tx_arg $delay $procedure $cpfs_action")
 
 # ========= Pktgen related constant parameters ===========
 pktgen_log_files = ["pktgen_stats.txt", "pktgen_console_logs.txt", "PCT.txt"]
@@ -46,7 +46,7 @@ servers_credentials_conf = "servers_credentials.json"
 pktgen_args = Template(
     "-d $duration -r $rate -u $workers -s $scheme -p $procedure -c $proc_count")
 pktgen_desc = Template(
-    "Running exp $id of $scheme $proc in $mode at rate = $rate")
+    "Running exp $id of $scheme $proc in $mode at rate = $rate | delay = $delay | tx_arg = $tx_arg | remote_replicas = $remote_replicas | local_replicas = $local_replicas")
 cta_conn = None
 cpf_conn = None
 
@@ -91,8 +91,11 @@ def make_res_dir(kv, pktgen_credentials):
     return path
 
 
-def parse_core_args(conf):
-    return core_args.substitute(conf)
+def parse_cta_args(conf):
+    return cta_args.substitute(conf)
+
+def parse_cpf_args(conf):
+    return cpf_args.substitute(conf)
 
 
 def parse_pktgen_args(conf):
@@ -129,7 +132,7 @@ def run_core(conn, chan, root, logs_dir, entity, py_cmd, entity_credentials):
     global timeout
     chan.sendall("cd {}\n".format(root))
     chan.sendall("mkdir -p {}\n".format(logs_dir))
-
+    temp = "sudo python3 run.py {}\n".format(py_cmd)
     stdin, stdout, stderr = conn.exec_command("cd {}; sudo python3 run.py {}\n".format(root, py_cmd), get_pty=True)
     stdin.write(entity_credentials['password'] + '\n')
     read_if_possible(chan)
@@ -220,10 +223,23 @@ def prepare_cpfs_replicas_arguments(replicas):
     return "_".join(list(map(str_cmb, flat_list)))
 
 def gen_configs(config):
-
+    
+    proc = 0
+    if config["procedure"] == "attach":
+        proc = 1
+    elif config["procedure"] == "handover":
+        proc = 2
+    else:
+        proc = 3
+    
     cta_conf = {
         "cpfs": config["cpfs"],
+        "remote_cpfs": config["remote_cpfs"],
         "replicas": config["replicas"],
+        "remote_replicas": config["remote_replicas"],
+        "tx_arg": config["tx_arg"],
+        "delay": config["delay"],
+        "procedure": proc,
         "scheme": 0 if config["scheme"] == "asn1" else 1,
         "cpfs_action": prepare_cpfs_action_arguments(config["cpfs_action"]),
     }
@@ -258,6 +274,7 @@ def collect_logs(config, exp_id, servers_credentials):
     config.update({"exp_id": exp_id})
     res_path = make_res_dir(config, pktgen_credentials)
 
+    print("Collecting Pktgen Logs")
     for pktgen_log in pktgen_log_files:
         src = os.path.join(pktgen_logs_dir + pktgen_log)
         if exists(src):
@@ -265,10 +282,12 @@ def collect_logs(config, exp_id, servers_credentials):
             move(src, dst)
 
     # Fetch CTA logs to results dir
+    print("Collecting CTA Logs")
     with SCPClient(cta_conn.get_transport()) as scp:
         for cta_log in cta_log_files:
             scp.get(cta_logs_dir + cta_log, local_path=res_path)
-
+            
+    print("Collecting CPF Logs")
     with SCPClient(cpf_conn.get_transport()) as scp:
         for cpf_log in cpf_log_files:
             scp.get(cpf_logs_dir + cpf_log, local_path=res_path)
@@ -281,7 +300,11 @@ def print_desc(exp_conf, exp_id):
         "proc": exp_conf["procedure"],
         "rate": exp_conf["curr_rate"],
         "mode": "bursty" if exp_conf["bursty"] else
-                "uniform"
+                "uniform",
+        "delay": exp_conf["delay"],
+        "tx_arg": exp_conf["tx_arg"],
+        "remote_replicas": exp_conf["remote_replicas"],
+        "local_replicas": (exp_conf["replicas"] - exp_conf["remote_replicas"])
     })
     print(desc)
 
@@ -307,14 +330,15 @@ def run_exp(exp_id, exp_conf, rate, proc_count, servers_credentials):
     cpf_conn, cpf_chan = connect_entity(core_credentials['cpf']['ip'], 
                                         core_credentials['cpf']['username'],
                                         pktgen_credentials['public_key_path'])
-    run_core(cpf_conn, cpf_chan, cpf_root, cpf_logs_dir, 'cpf', parse_core_args(core_conf),
+    
+    run_core(cpf_conn, cpf_chan, cpf_root, cpf_logs_dir, 'cpf', parse_cpf_args(core_conf),
              core_credentials['cpf'])
     print("Started CPF(s)")
 
     cta_conn, cta_chan = connect_entity(core_credentials['cta']['ip'], 
                                         core_credentials['cta']['username'],
                                         pktgen_credentials['public_key_path'])
-    run_core(cta_conn, cta_chan, cta_root, cta_logs_dir, 'cta', parse_core_args(core_conf),
+    run_core(cta_conn, cta_chan, cta_root, cta_logs_dir, 'cta', parse_cta_args(core_conf),
              core_credentials['cta'])
     print("Started CTA")
 

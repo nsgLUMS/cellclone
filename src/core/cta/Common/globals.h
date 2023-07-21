@@ -32,7 +32,12 @@ struct cpf_actions {
 struct CTAConfig {
   int serializer;
   int number_of_cpfs;
+  int number_of_remote_cpfs;
   int replicas;
+  int remote_replicas;
+  int tx_arg;
+  int delay;
+  int procedure;
   std::vector<float> *cpu_loads;
 };
 

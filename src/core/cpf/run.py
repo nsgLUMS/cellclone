@@ -16,7 +16,12 @@ action_string = '''
 template = """\
 serializer=$serializer;
 number_of_cpf=$cpfs;
+number_of_remote_cpfs=$remote_cpfs;
 replicas=$replicas;
+remote_replicas=$remote_replicas;
+tx_arg=$tx_arg;
+delay=$delay;
+procedure=$procedure;
 cpfs_action=($cpfs_action_string
 );\
 """
@@ -28,8 +33,13 @@ def run_async(cmd):
 def run():
     serializer = sys.argv[1]
     cpfs = sys.argv[2]
-    replicas = sys.argv[3]
-    cpfs_action = sys.argv[4]
+    remote_cpfs = sys.argv[3]
+    replicas = sys.argv[4]
+    remote_replicas = sys.argv[5]
+    tx_arg = sys.argv[6]
+    delay = sys.argv[7]
+    procedure = sys.argv[8]
+    cpfs_action = sys.argv[9]
 
     str_split = lambda x: x.split(',')
 
@@ -51,7 +61,11 @@ def run():
 
     # print(cpfs_actions)
     res = config.substitute({'serializer': serializer,
-                             'cpfs': cpfs, 'replicas': replicas,
+                             'cpfs': cpfs, 'remote_cpfs': remote_cpfs,
+                             'replicas': replicas, 'remote_replicas': remote_replicas,
+                             'tx_arg': tx_arg,
+                             'delay': delay,
+                             'procedure': procedure,
                              'cpfs_action_string': cpfs_actions})
 
     config_file = open("cta_config.cfg", "w")

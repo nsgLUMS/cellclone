@@ -16,6 +16,12 @@
 #include "init/initializer.hpp"
 #include "cpf/cpf.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <chrono>
+#include <ctime>
+
 #define LOCK_FILE "core.lck"
 #define CPU_SOCKETS 1
 unsigned int curr_cores[CPU_SOCKETS];
@@ -50,8 +56,18 @@ NicInterface nicInterface;
 
 const size_t FLAG_OFFSET =
     sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t) + sizeof(uint8_t);
+
 const size_t PAYLOAD_OFFSET =
     sizeof(struct ether_hdr) + sizeof(struct ipv4_hdr) + sizeof(struct udp_hdr);
+
+const size_t CPF_ID_OFFSET =
+    sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t); 
+
+const size_t CPF_TYPE_OFFSET =
+    sizeof(char);
+
+const size_t CPF_TIME_OFFSET =
+    sizeof(time_t);
 
 int is_duplicate(struct rte_hash *logical_clocks, struct rte_mbuf *pkt, 
                   int write_quorum_size, struct CTAConfig *conf){
@@ -130,6 +146,7 @@ int is_duplicate(struct rte_hash *logical_clocks, struct rte_mbuf *pkt,
   3. Forwarding the messages to the transmission workers.
  */
 
+
 void *listen_on_tx(void *args) {
   
   struct LBRtnInfo *lb_rtn_info = (struct LBRtnInfo*) args;
@@ -173,6 +190,36 @@ void *listen_on_tx(void *args) {
     // Receiving responses from the CPFs.
     nb_rx = rte_eth_rx_burst((uint8_t)CPF_PORT, 0, pkts_burst, MAX_PKT_BURST);
 
+    // uint16_t consumed = 0;
+
+    // time_t currentTime = time(NULL);
+    // int returned;
+    // for (uint16_t i = 0; i < nb_rx; ++i)
+    // {
+    //     struct rte_mbuf *pkt = pkts_burst[i];
+    //     uint8_t *data = rte_pktmbuf_mtod_offset(pkt, uint8_t*, PAYLOAD_OFFSET);
+    //     char type = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET);
+
+    //     if (type == 'L')
+    //     {
+    //         consumed++;
+    //     }
+    //     else
+    //     {
+    //         time_t packet_time = *(data + CPF_ID_OFFSET + CPF_TYPE_OFFSET + CPF_TIME_OFFSET);
+    //         long time_diff = (currentTime - packet_time) * 1000000L;
+
+    //         if (time_diff >= 50000)
+    //         {
+    //             consumed++;
+    //         }
+    //         else
+    //         {
+    //           returned = rte_eth_tx_burst((uint8_t)CPF_PORT, 0, pkts_burst, MAX_PKT_BURST);
+    //         }
+    //     }
+    // }
+
     if (nb_rx == 0) {
       continue;
     }
@@ -182,9 +229,8 @@ void *listen_on_tx(void *args) {
     int j = 0, k = 0;
 
     for (int i = 0; i < nb_rx; i++) {
-      
       // Check for the status of message.
-      int ret = is_duplicate(logical_clocks, pkts_burst[i], 2, lb_rtn_info->config);
+      int ret = is_duplicate(logical_clocks, pkts_burst[i], lb_rtn_info->config->tx_arg, lb_rtn_info->config);
 
       // If the message is not duplicate, save it for further processing.
       if(ret == 0){
@@ -202,7 +248,6 @@ void *listen_on_tx(void *args) {
       } else {
         printf("Wrong return\n");
       }
-      
     }
 
     // Forward the messages to transmission threads to send the to pktgen.
@@ -609,13 +654,12 @@ static void create_CPF(struct cpf_args *args)
                          args->id + 9091, args->cta_config,
                          args->actions, args->cpu_loads);
   new_cpf->setID((uint8_t) args->id);
-  nicInterface.controller->addNode(new_cpf);
 
+  nicInterface.controller->addNode(new_cpf);
 }
 
 int main(int argc, char **argv)
 {
-
   struct cpf_args cpf_args;
 
   InitLogger();
@@ -624,19 +668,27 @@ int main(int argc, char **argv)
 
   Config cfg;
   cfg.readFile("cta_config.cfg");
-
   int serializer = cfg.lookup("serializer");
   int number_of_cpf = cfg.lookup("number_of_cpf");
+  int number_of_remote_cpfs = cfg.lookup("number_of_remote_cpfs");
   int replicas = cfg.lookup("replicas");
+  int remote_replicas = cfg.lookup("remote_replicas");
+  int tx_arg = cfg.lookup("tx_arg");
+  int delay = cfg.lookup("delay");
+  int procedure = cfg.lookup("procedure");
   Setting &actions = cfg.lookup("cpfs_action");
   
 
   struct CTAConfig *conf = malloc(sizeof(CTAConfig));
   conf->serializer = serializer;
   conf->number_of_cpfs = number_of_cpf;
+  conf->number_of_remote_cpfs = number_of_remote_cpfs;
   conf->replicas = replicas;
+  conf->remote_replicas = remote_replicas;
+  conf->tx_arg = tx_arg;
+  conf->delay = delay;
+  conf->procedure = procedure;
   conf->cpu_loads = &lb_cpu_loads;
-
   setup_cta(argc, argv);
   printf("===================================================\n");
   nicInterface.Init();

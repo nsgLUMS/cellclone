@@ -36,6 +36,9 @@ const size_t PAYLOAD_OFFSET =
 const size_t CPF_ID_OFFSET =
     sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t); 
 
+const size_t CPF_TYPE_OFFSET =
+    sizeof(char);
+
 void setCPFActions(Setting &action, struct cpf_actions *cpf_actions, int cpf_id);
 void *setup_ports(int nb_workers, struct rte_eth_conf port_conf);
 
@@ -177,7 +180,7 @@ static void do_rx(void *arg) {
 
         // Finding for each message the selected CPF. This bit was set on CTA.
         uint8_t cpf_id = *(payload + CPF_ID_OFFSET);
-
+      
         // Sending the message to the approriate CPF.
         ret = rte_ring_enqueue(rx_rings[cpf_id], pkts_burst[i]);
       }
@@ -292,10 +295,14 @@ int main(int argc, char **argv){
 
   Config cfg;
   cfg.readFile("cta_config.cfg");
-
   int serializer = cfg.lookup("serializer");
   int number_of_cpf = cfg.lookup("number_of_cpf");
+  int number_of_remote_cpfs = cfg.lookup("number_of_remote_cpfs");
   int replicas = cfg.lookup("replicas");
+  int remote_replicas = cfg.lookup("remote_replicas");
+  int tx_arg = cfg.lookup("tx_arg");
+  int delay = cfg.lookup("delay");
+  int procedure = cfg.lookup("procedure");
   Setting &actions = cfg.lookup("cpfs_action");
 
   setup_ports(number_of_cpf);
@@ -319,7 +326,12 @@ int main(int argc, char **argv){
   struct CTAConfig *conf = malloc(sizeof(CTAConfig));
   conf->serializer = serializer;
   conf->number_of_cpfs = number_of_cpf;
+  conf->number_of_remote_cpfs = number_of_remote_cpfs;
   conf->replicas = replicas;
+  conf->remote_replicas = remote_replicas;
+  conf->tx_arg = tx_arg;
+  conf->delay = delay;
+  conf->procedure = procedure;
   conf->cpu_loads = &lb_cpu_loads;
 
   cpf_args.rx_ring = NULL;

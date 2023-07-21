@@ -118,8 +118,12 @@ Figure 11 shows the evaluation of five systems (_Neutrino_, Existing 5G, ...) un
 1. First, naviagte to [exps](https://github.com/nsgLUMS/cellclone/tree/master/exps) folder and open [config.json](https://github.com/nsgLUMS/cellclone/blob/master/exps/config.json) file.
 2. The provided config file reproduces the _CellClone-ASN.1_ results from [Figure 11](#fig3). Let's explore which variables are relevant in this experiemnt. Note: please do not change variables not explained here. 
     - `bursty`: `false` means the Control Traffic Generator will replay the cellular traffic in uniform rate i.e., messages per second.
+    - `remote_cpfs`: `2` means that out of the specified number of CPFs, __2__ are remotely deployed while the remaining (if any) are locally deployed.
     - `replicas`: `3` means a single message will be forwarded to exactly __3__ CPFs.
-    - `cpfs_action`: describes how each CPF will behave. For instance, `{"1": "straggler", "type": 2}` hash has two key-value pairs. First key-value means first CPF will behave as a straggler. Whereas, second key-value pair indicats the type of staggler first CPF will behave as. Types of stragglers are given below,
+    - `remote_replicas`: `2` means a single message will be forwarded to exactly __2__ remote CPFs and __1__ local CPFs out of three __3__ aforementioned CPFs (should enough remote and local CPFs exist).
+    - `tx_arg`: denotes the write quoram. For instance, `1` would mean that the CTA will wait for the write response of atleast __1__ CPF before forwarding the response to the UE.
+    - `delay`: denotes the additional propogation delay incurred during the transmission of packets from a remote CPF to CTA (in microseconds).
+    - `cpfs_action`: describes how each CPF will behave. For instance, `{"1": "straggler", "type": 2}` hash has two key-value pairs. First key-value means first CPF will behave as a straggler. Whereas, second key-value pair indicates the type of staggler first CPF will behave as. Types of stragglers are given below,
         - `type`: `0` => T-straggler
         - `type`: `1` => P-straggler
         - `type`: `2` => No straggler

@@ -13,6 +13,9 @@ const size_t PAYLOAD_OFFSET =
 const size_t CPF_ID_OFFSET =
     sizeof(double) + sizeof(lgclock_t) + sizeof(size_t) + sizeof(guti_t); 
 
+const size_t CPF_TYPE_OFFSET =
+    sizeof(char);
+
 using namespace std;
 
 LoadBalancer::LoadBalancer() {}
@@ -83,12 +86,12 @@ void LoadBalancer::forward(struct rte_mbuf **rsp, size_t key, CTAConfig *conf, i
   if (balancing_ring.size() > 0)
   {
     int replicas = conf->replicas;
-
+    int remote_replicas = 0;
     // Already extracted CPFs hashes.
     set<CPF *> cpf_hashes;
 
     for (int i = 0; i < replicas; i++)
-    {
+    { 
       // Searching for next physical node in the consistent hash ring
       CPF *cpf = this->nextSuitableNode(key, i, conf->number_of_cpfs, cpf_hashes);
 
@@ -96,6 +99,15 @@ void LoadBalancer::forward(struct rte_mbuf **rsp, size_t key, CTAConfig *conf, i
 
       // Embedding the CPF id for later use.
       *(payload + CPF_ID_OFFSET) = cpf->getID();
+
+      if (remote_replicas != conf->remote_replicas)
+      {
+        *(payload + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'R';
+        remote_replicas++;
+      } else {
+        *(payload + CPF_ID_OFFSET + CPF_TYPE_OFFSET) = 'L';
+      }
+      
       cpf_hashes.insert(cpf);
     }
 
